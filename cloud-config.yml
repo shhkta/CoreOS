@@ -21,6 +21,27 @@ coreos:
         Type=oneshot
         ExecStart=/usr/bin/timedatectl set-timezone Asia/Tokyo
         RemainAfterExit=yes
+    - name: systemd-sysctl.service
+      command: restart
+    - name: create-swap.service
+      command: start
+      runtime: true
+      content: |
+        [Unit]
+        Description=Create swap file
+        Before=swap.service
+
+        [Service]
+        Type=oneshot
+        Environment="SWAPFILE=/2GiB.swap"
+        ExecStart=/usr/bin/touch ${SWAPFILE}
+        ExecStart=/usr/bin/chattr +C ${SWAPFILE}
+        ExecStart=/usr/bin/fallocate -l 2048m ${SWAPFILE}
+        ExecStart=/usr/bin/chmod 600 ${SWAPFILE}
+        ExecStart=/usr/sbin/mkswap ${SWAPFILE}
+
+        [Install]
+        WantedBy=multi-user.target
     - name: swap.service
       command: start
       content: |
@@ -29,18 +50,16 @@ coreos:
 
         [Service]
         Type=oneshot
-        Environment="SWAPFILE=/swapfile"
-        Environment="SWAPSIZE=2GiB"
+        Environment="SWAPFILE=/2GiB.swap"
         RemainAfterExit=true
-        ExecStartPre=/usr/bin/sh -c '/usr/bin/fallocate -l \${SWAPSIZE} \${SWAPFILE} && chmod 0600 \${SWAPFILE} && /usr/sbin/mkswap \${SWAPFILE}'
-        ExecStartPre=/usr/sbin/losetup -f \${SWAPFILE}
-        ExecStart=/usr/bin/sh -c "/sbin/swapon \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
-        ExecStop=/usr/bin/sh -c "/sbin/swapoff \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
-        ExecStopPost=/usr/bin/sh -c "/usr/sbin/losetup -d \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStartPre=/usr/sbin/losetup -f ${SWAPFILE}
+        ExecStart=/usr/bin/sh -c "/sbin/swapon $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStop=/usr/bin/sh -c "/sbin/swapoff $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStopPost=/usr/bin/sh -c "/usr/sbin/losetup -d $(/usr/sbin/losetup -j ${SWAPFILE} | /usr/bin/cut -d : -f 1)"
 
         [Install]
         WantedBy=multi-user.target
-
+        
 ssh_authorized_keys:
   - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDXYZ8++p8gC6lZvqYeZytcg6R36TW7aPSm27Inth1OV0CFvohgNCVwmk0JrncmFSQF8ELIomdRdUsoeJblLcxT01oAPoBSyG5nwywwPj1akKwkQVA+dq0FEEzW5jLkQeYubra2DIksbnIXQMSsRhjf9N/ULL28cMv4ZOs4jW3DSCewTvvPl87XpX5RCLANKoCrqZ1nk1zmAufOt9Z02yTv8iqzFfGZMG1mJFNgYP5zffUX0OXbPI1wNdLLWAafYQFTzHYhwaneRur6VJ/ipaJKwyLZWa509ilUo1Wn0EABZGTNuMb8XYy4IE7iZ6wj946U3C4n65dDXDGzoJHwBZab
 
