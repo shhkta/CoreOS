@@ -1,0 +1,59 @@
+#cloud-config
+coreos:
+  units:
+    - name: static.network
+      content: |
+        [Match]
+        Name=eth0
+
+        [Network]
+        Address=192.168.11.2/23
+        Gateway=192.168.11.1
+        DNS=210.188.224.10
+        DNS=210.188.224.11
+    - name: timezone.service
+      command: start
+      content: |
+        [Unit]
+        Description=set the timezone
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/timedatectl set-timezone Asia/Tokyo
+        RemainAfterExit=yes
+    - name: swap.service
+      command: start
+      content: |
+        [Unit]
+        Description=Turn on swap
+
+        [Service]
+        Type=oneshot
+        Environment="SWAPFILE=/swapfile"
+        Environment="SWAPSIZE=2GiB"
+        RemainAfterExit=true
+        ExecStartPre=/usr/bin/sh -c '/usr/bin/fallocate -l \${SWAPSIZE} \${SWAPFILE} && chmod 0600 \${SWAPFILE} && /usr/sbin/mkswap \${SWAPFILE}'
+        ExecStartPre=/usr/sbin/losetup -f \${SWAPFILE}
+        ExecStart=/usr/bin/sh -c "/sbin/swapon \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStop=/usr/bin/sh -c "/sbin/swapoff \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+        ExecStopPost=/usr/bin/sh -c "/usr/sbin/losetup -d \$(/usr/sbin/losetup -j \${SWAPFILE} | /usr/bin/cut -d : -f 1)"
+
+        [Install]
+        WantedBy=multi-user.target
+
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDXYZ8++p8gC6lZvqYeZytcg6R36TW7aPSm27Inth1OV0CFvohgNCVwmk0JrncmFSQF8ELIomdRdUsoeJblLcxT01oAPoBSyG5nwywwPj1akKwkQVA+dq0FEEzW5jLkQeYubra2DIksbnIXQMSsRhjf9N/ULL28cMv4ZOs4jW3DSCewTvvPl87XpX5RCLANKoCrqZ1nk1zmAufOt9Z02yTv8iqzFfGZMG1mJFNgYP5zffUX0OXbPI1wNdLLWAafYQFTzHYhwaneRur6VJ/ipaJKwyLZWa509ilUo1Wn0EABZGTNuMb8XYy4IE7iZ6wj946U3C4n65dDXDGzoJHwBZab
+
+write_files:
+  - path: /etc/ssh/sshd_config
+    permissions: 0600
+    owner: root:root
+    content: |
+      # Use most defaults for sshd configuration.
+      UsePrivilegeSeparation sandbox
+      Subsystem sftp internal-sftp
+
+      PermitRootLogin no
+      AllowUsers core
+      PasswordAuthentication no
+      ChallengeResponseAuthentication no
