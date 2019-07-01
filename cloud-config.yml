@@ -76,3 +76,4 @@ write_files:
       AllowUsers core
       PasswordAuthentication no
       ChallengeResponseAuthentication no
+      AllowTcpForwarding yes
